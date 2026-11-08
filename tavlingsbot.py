@@ -20,7 +20,7 @@ def save_seen_url(url):
 
 def send_to_discord(title, url):
     data = {
-        "content": f"🎉 **Svensk Instagram-tävling (Från 1 nov & framåt)!**\n**{title}**\n{url}"
+        "content": f"🎉 **Aktiv / Ny svensk Instagram-tävling!**\n**{title}**\n{url}"
     }
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=data)
@@ -30,13 +30,13 @@ def send_to_discord(title, url):
 def search_competitions():
     seen = load_seen()
     
-    # Sökfrågor låsta till 1 november 2026 och framåt
+    # Sökfrågor som siktar på svenska Instagram-tävlingar från 1 nov 2026
     queries = [
         "site:instagram.com tävling efter:2026-11-01",
         "site:instagram.com utlottning efter:2026-11-01",
         "site:instagram.com \"tävla och vinn\" efter:2026-11-01",
         "site:instagram.com giveaway Sverige efter:2026-11-01",
-        "site:instagram.com \"vinn\" efter:2026-11-01"
+        "site:instagram.com \"vinn\" Sverige efter:2026-11-01"
     ]
     
     new_competitions = []
@@ -54,11 +54,13 @@ def search_competitions():
                     
                     url_lower = url.lower()
                     
-                    # KRÄVER Instagram och blockerar allt annat stenhårt
-                    if "instagram.com" not in url_lower:
+                    # 1. STENHÅRT KRAV: Länken MÅSTE vara en ren Instagram-länk
+                    if not ("instagram.com/p/" in url_lower or "instagram.com/reel/" in url_lower or "instagram.com/" in url_lower):
                         continue
-                        
-                    if "facebook.com" in url_lower or "youtube.com" in url_lower or "youtu.be" in url_lower:
+                    
+                    # 2. BLOCKERA EXPLICIT allt annat som inte hör hemma (LinkedIn, Facebook, YouTube m.m.)
+                    blocked_domains = ["linkedin.com", "facebook.com", "youtube.com", "youtu.be", "twitter.com", "x.com"]
+                    if any(domain in url_lower for domain in blocked_domains):
                         continue
                         
                     seen.add(url)
@@ -71,12 +73,12 @@ def search_competitions():
     return new_competitions
 
 if __name__ == "__main__":
-    print("Boten startad! Hämtar tävlingar från 1 nov 2026 och alla helt nya framåt...")
+    print("Boten startad! Filtrerar 100% enbart renodlade Instagram-länkar (från 1 nov & framåt)...")
     while True:
         tavlingar = search_competitions()
         for t in tavlingar:
             send_to_discord(t["title"], t["url"])
             time.sleep(1)
         
-        # Söker om var 10:e minut för att fånga nya direkt när de läggs ut
+        # Söker på nytt var 10:e minut
         time.sleep(600)
