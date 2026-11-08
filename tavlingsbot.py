@@ -20,7 +20,7 @@ def save_seen_url(url):
 
 def send_to_discord(title, url):
     data = {
-        "content": f"🎉 **Ny svensk Instagram-tävling!**\n**{title}**\n{url}"
+        "content": f"🎉 **Svensk Instagram-tävling (Från 1 nov & framåt)!**\n**{title}**\n{url}"
     }
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=data)
@@ -30,12 +30,13 @@ def send_to_discord(title, url):
 def search_competitions():
     seen = load_seen()
     
-    # Sökfrågor som enbart letar efter Instagram-tävlingar
+    # Sökfrågor låsta till 1 november 2026 och framåt
     queries = [
-        "site:instagram.com tävling",
-        "site:instagram.com vinn",
-        "site:instagram.com utlottning",
-        "site:instagram.com \"tävla\""
+        "site:instagram.com tävling efter:2026-11-01",
+        "site:instagram.com utlottning efter:2026-11-01",
+        "site:instagram.com \"tävla och vinn\" efter:2026-11-01",
+        "site:instagram.com giveaway Sverige efter:2026-11-01",
+        "site:instagram.com \"vinn\" efter:2026-11-01"
     ]
     
     new_competitions = []
@@ -43,8 +44,7 @@ def search_competitions():
     with DDGS() as ddgs:
         for query in queries:
             try:
-                # Sök på svenska (se-sv)
-                results = ddgs.text(query, region="se-sv", max_results=10)
+                results = ddgs.text(query, region="se-sv", max_results=30)
                 for r in results:
                     title = r.get("title", "")
                     url = r.get("href", "")
@@ -54,15 +54,13 @@ def search_competitions():
                     
                     url_lower = url.lower()
                     
-                    # 1. KRÄVER att det är Instagram (släpper inte igenom YouTube, Facebook etc.)
+                    # KRÄVER Instagram och blockerar allt annat stenhårt
                     if "instagram.com" not in url_lower:
                         continue
                         
-                    # 2. Blockera extra hårt om Facebook eller YouTube nämns i länken
                     if "facebook.com" in url_lower or "youtube.com" in url_lower or "youtu.be" in url_lower:
                         continue
                         
-                    # 3. Godkänn och spara
                     seen.add(url)
                     save_seen_url(url)
                     new_competitions.append({"title": title, "url": url})
@@ -73,11 +71,12 @@ def search_competitions():
     return new_competitions
 
 if __name__ == "__main__":
-    print("Boten startad! Filtrerar stenhårt: Endast svenska Instagram-tävlingar...")
+    print("Boten startad! Hämtar tävlingar från 1 nov 2026 och alla helt nya framåt...")
     while True:
         tavlingar = search_competitions()
         for t in tavlingar:
             send_to_discord(t["title"], t["url"])
+            time.sleep(1)
         
-        # Vänta 1 timme innan nästa sökning
-        time.sleep(3600)
+        # Söker om var 10:e minut för att fånga nya direkt när de läggs ut
+        time.sleep(600)
