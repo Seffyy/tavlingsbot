@@ -20,7 +20,7 @@ def save_seen_url(url):
 
 def send_to_discord(title, url):
     data = {
-        "content": f"🎉 **Ny Instagram-tävling på svenska!**\n**{title}**\n{url}"
+        "content": f"🎉 **Ny svensk Instagram-tävling!**\n**{title}**\n{url}"
     }
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=data)
@@ -30,11 +30,12 @@ def send_to_discord(title, url):
 def search_competitions():
     seen = load_seen()
     
-    # Sökfrågor som enbart letar efter Instagram-tävlingar på svenska (helt utan Facebook)
+    # Sökfrågor som enbart letar efter Instagram-tävlingar
     queries = [
         "site:instagram.com tävling",
         "site:instagram.com vinn",
-        "site:instagram.com utlottning"
+        "site:instagram.com utlottning",
+        "site:instagram.com \"tävla\""
     ]
     
     new_competitions = []
@@ -48,20 +49,31 @@ def search_competitions():
                     title = r.get("title", "")
                     url = r.get("href", "")
                     
-                    # Kontrollera att det är Instagram och att länken är unik
-                    if url and url not in seen:
-                        # Extra säkerhetskoll: Undvik Facebook helt
-                        if "facebook.com" not in url.lower():
-                            seen.add(url)
-                            save_seen_url(url)
-                            new_competitions.append({"title": title, "url": url})
+                    if not url or url in seen:
+                        continue
+                    
+                    url_lower = url.lower()
+                    
+                    # 1. KRÄVER att det är Instagram (släpper inte igenom YouTube, Facebook etc.)
+                    if "instagram.com" not in url_lower:
+                        continue
+                        
+                    # 2. Blockera extra hårt om Facebook eller YouTube nämns i länken
+                    if "facebook.com" in url_lower or "youtube.com" in url_lower or "youtu.be" in url_lower:
+                        continue
+                        
+                    # 3. Godkänn och spara
+                    seen.add(url)
+                    save_seen_url(url)
+                    new_competitions.append({"title": title, "url": url})
+                    
             except Exception as e:
                 print(f"Fel vid sökning: {e}")
 
     return new_competitions
 
 if __name__ == "__main__":
-    print("Boten startad! Letar endast efter svenska Instagram-tävlingar...")
+    print("Boten startad! Filtrerar stenhårt: Endast svenska Instagram-tävlingar...")
     while True:
         tavlingar = search_competitions()
         for t in tavlingar:
